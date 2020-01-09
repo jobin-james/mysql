@@ -1,0 +1,56 @@
+# file: mysql/tasks/secure.yml
+- name: Configure MySql for easy access as root user
+  template:
+    src: root_dot_my.cnf.j2
+    dest: /root/.my.cnf
+    owner: root
+    group: root
+    mode: 0600
+
+- name: Get Mysql Default user
+  shell: sudo grep user /etc/mysql/debian.cnf | awk  {'print $3'} | uniq
+  register: mysql_default_user
+
+- name: Get Mysql Default Password
+  shell: sudo grep password /etc/mysql/debian.cnf | awk  {'print $3'} | uniq
+  register: mysql_default_password
+
+- name: Changing the root password (local hostname).
+  mysql_user:
+    user: root
+    host: "{{item}}"
+    password: "{{mysql_root_password}}"
+    login_user: "{{mysql_default_user.stdout}}"
+    login_password: "{{mysql_default_password.stdout}}"
+    priv: "*.*:ALL,GRANT"
+  with_items:
+   - 127.0.0.1
+   - ::1
+   - localhost
+
+- name: Remove anonymous MySQL server user
+  mysql_user:
+    name: ""
+    host: "{{item}}"
+    state: absent
+  with_items:
+    # - "{{ansible_hostname}}"
+    - localhost
+    - 127.0.0.1
+    - ::1
+
+- name: Remove the MySQL test database
+  mysql_db:
+    name: test
+    state: absent
+
+- name: Remove the MySQL anonymous Users
+  mysql_user:
+    name: ''
+    host: "{{item}}"
+    state: absent
+  with_items:
+    # - "{{ansible_hostname}}"
+    - localhost
+    - 127.0.0.1
+    - ::1
